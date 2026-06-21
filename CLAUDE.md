@@ -56,19 +56,25 @@ npm run build    # build de produção em dist/
 - A seção "Strong counters" mostra **apenas Pokémon usados pelos players**,
   ordenados por % de uso, cruzando as fraquezas do alvo com as usage stats.
 - Fonte: **Smogon chaos JSON** (`smogon.com/stats/<mês>/chaos/<formato>-1760.json`),
-  derivado do ladder do Pokémon Showdown. Formato atual: `gen9vgc2026regi`
-  (constante `DEFAULT_FORMAT` em [api/usage.js](api/usage.js) — **atualizar quando
-  a regulation mudar**).
+  derivado do ladder do Pokémon Showdown. Usa os formatos **do Pokémon Champions**
+  (excluem restricted/lendários, incluem Megas), via **seletor de regulation M-A/M-B**:
+  - M-A → `gen9championsvgc2026regma` (tem dados)
+  - M-B → `gen9championsvgc2026regmb` (**ainda sem stats** em jun/2026; o cliente
+    mostra "no usage data yet" até o Smogon publicar)
+  - mapa `REGULATIONS` em [src/App.jsx](src/App.jsx); `DEFAULT_FORMAT` em
+    [api/usage.js](api/usage.js) — **atualizar nomes quando a regulation mudar**.
 - **CORS:** o smogon.com não envia header CORS, então o browser não busca direto.
   Por isso há uma **Vercel Serverless Function** [api/usage.js](api/usage.js) que
   busca server-side, normaliza nomes Smogon→PokéAPI (aliases p/ formes: Urshifu,
   Landorus, Ogerpon-*, Indeedee-F…) e devolve `{ usage: { slug: fração } }` com
   cache (warm-instance + `Cache-Control` na CDN).
-- Cliente: `fetchUsage()` chama `/api/usage`; `fetchCounters()` usa
-  `countersByUsage` (parte dos ~90 mais usados, busca tipos e agrupa por fraqueza).
-  **Fallback** para `countersByStats` (mais fortes por base stats) quando o usage
-  não está disponível — ex.: `vite dev` local **não** roda a function; só `vercel
-  dev` ou produção servem `/api/usage`.
+- Cliente: `fetchUsage(format)` chama `/api/usage?format=…` (cache por formato e
+  status `ok`/`nodata`/`unavailable`); `fetchCounters(weaknesses, format)` retorna
+  `{ status, month, groups }`. `countersByUsage` parte dos ~90 mais usados, busca
+  tipos e agrupa por fraqueza (sem filtrar Megas). Counters carregam num
+  `useEffect([pokemon, regulation])`. **Fallback** para `countersByStats` só quando
+  o endpoint está indisponível (ex.: `vite dev` local **não** roda a function; só
+  `vercel dev` ou produção servem `/api/usage`).
 
 ## Decisão importante: cálculo de fraquezas
 

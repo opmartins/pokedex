@@ -2,7 +2,7 @@
 // monthly by Smogon) and returns a compact { format, month, usage } map.
 // Needed because smogon.com sends no CORS header, so the browser can't fetch it.
 
-const DEFAULT_FORMAT = 'gen9vgc2026regi' // current Champions/VGC regulation
+const DEFAULT_FORMAT = 'gen9championsvgc2026regma' // Pokémon Champions Reg M-A
 const RATING = 1760 // high-ladder snapshot
 
 // Smogon names -> PokéAPI slugs for forms that differ between the two.
@@ -63,7 +63,13 @@ export default async function handler(req, res) {
       for (const [name, v] of Object.entries(json.data)) {
         usage[normalize(name)] = v.usage
       }
-      const data = { format, month, count: Object.keys(usage).length, usage }
+      const data = {
+        format,
+        month,
+        available: true,
+        count: Object.keys(usage).length,
+        usage,
+      }
       cache = { format, data, expires: Date.now() + 6 * 3600 * 1000 }
       res.setHeader('Cache-Control', 's-maxage=86400, stale-while-revalidate=86400')
       return res.status(200).json(data)
@@ -72,5 +78,11 @@ export default async function handler(req, res) {
     }
   }
 
-  return res.status(502).json({ error: 'usage stats unavailable' })
+  // The format isn't published yet (e.g. a brand-new regulation). This is a
+  // valid "no data" answer, not a server error — return 200 so the client can
+  // tell it apart from the endpoint being unreachable.
+  const data = { format, available: false, usage: null }
+  cache = { format, data, expires: Date.now() + 3600 * 1000 }
+  res.setHeader('Cache-Control', 's-maxage=3600, stale-while-revalidate=3600')
+  return res.status(200).json(data)
 }

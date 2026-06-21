@@ -233,42 +233,57 @@ async function fetchSummary(name) {
   }
 }
 
-// Competitive usage map ({ pokeapiSlug: usageFraction }), fetched once via the
-// serverless proxy. Returns null when unavailable (e.g. local `vite dev`).
-let usagePromise = null
-export function fetchUsage() {
-  if (!usagePromise) {
-    usagePromise = fetch('/api/usage')
-      .then((r) => (r.ok ? r.json() : null))
-      .then((d) => (d && d.usage ? d : null))
-      .catch(() => null)
+// Competitive usage per Showdown/Smogon format, fetched once per format via the
+// serverless proxy. Resolves to one of:
+//   { status: 'ok', usage, month }  — usage data available
+//   { status: 'nodata' }            — format valid but not published yet
+//   { status: 'unavailable' }       — endpoint unreachable (e.g. local vite dev)
+const usagePromises = new Map()
+export function fetchUsage(format) {
+  if (!usagePromises.has(format)) {
+    const p = fetch(`/api/usage?format=${encodeURIComponent(format)}`)
+      .then(async (r) => {
+        const ct = r.headers.get('content-type') || ''
+        if (!r.ok || !ct.includes('application/json')) {
+          return { status: 'unavailable' }
+        }
+        const d = await r.json()
+        if (d?.usage) return { status: 'ok', usage: d.usage, month: d.month }
+        return { status: 'nodata' }
+      })
+      .catch(() => ({ status: 'unavailable' }))
+    usagePromises.set(format, p)
   }
-  return usagePromise
+  return usagePromises.get(format)
 }
 
 /**
- * For each weakness type, returns the counters to show.
- * Preferred: Pokémon actually used by players (ranked by usage %), taken from
- * Showdown/Smogon usage stats. Falls back to strongest-by-base-stats when
- * usage data isn't available.
- * Returns: [{ type, mult, pokemon: [{ name, sprite, total, usage? }] }]
+ * Returns the counters to show for a given Pokémon Champions regulation.
+ * Preferred: Pokémon actually used by players (ranked by usage %). Falls back to
+ * strongest-by-base-stats only when the usage endpoint is unreachable.
+ * Returns: { status, month, groups: [{ type, mult, pokemon: [...] }] }
+ *   status: 'ok' | 'nodata' | 'fallback'
  */
-export async function fetchCounters(weaknesses) {
-  if (!weaknesses?.length) return []
+export async function fetchCounters(weaknesses, format) {
+  if (!weaknesses?.length) return { status: 'ok', month: null, groups: [] }
 
-  const usageData = await fetchUsage()
-  if (usageData?.usage) {
-    return countersByUsage(weaknesses, usageData.usage)
+  const u = await fetchUsage(format)
+  if (u.status === 'ok') {
+    return { status: 'ok', month: u.month, groups: await countersByUsage(weaknesses, u.usage) }
   }
-  return countersByStats(weaknesses)
+  if (u.status === 'nodata') {
+    return { status: 'nodata', month: null, groups: [] }
+  }
+  return { status: 'fallback', month: null, groups: await countersByStats(weaknesses) }
 }
 
 async function countersByUsage(weaknesses, usage) {
+  // No form filtering here: whatever is in a format's usage list is legal in it
+  // (Mega Evolutions, for example, are allowed and popular in Champions).
   const topUsed = Object.entries(usage)
     .sort((a, b) => b[1] - a[1])
     .slice(0, USAGE_POOL)
     .map(([slug]) => slug)
-    .filter((n) => !EXCLUDED_FORMS.test(n))
 
   const mons = (await runPool(topUsed, 10, fetchSummary)).filter(Boolean)
 
