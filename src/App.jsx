@@ -39,6 +39,14 @@ export default function App() {
   const [open, setOpen] = useState(false) // suggestions dropdown visible
   const [active, setActive] = useState(-1) // highlighted suggestion index
   const boxRef = useRef(null)
+  const inputRef = useRef(null)
+
+  function clearQuery() {
+    setQuery('')
+    setActive(-1)
+    setOpen(false)
+    inputRef.current?.focus()
+  }
 
   // Load the full name list once for autocomplete.
   useEffect(() => {
@@ -178,8 +186,9 @@ export default function App() {
         >
           <div className="search__box" ref={boxRef}>
             <input
+              ref={inputRef}
               type="text"
-              className="search__input"
+              className={`search__input ${query ? 'search__input--has-clear' : ''}`}
               placeholder="Type a Pokémon name (e.g. pikachu, charizard...)"
               value={query}
               onChange={(e) => {
@@ -195,6 +204,17 @@ export default function App() {
               aria-expanded={open && suggestions.length > 0}
               aria-controls="suggestions"
             />
+            {query && (
+              <button
+                type="button"
+                className="search__clear"
+                onClick={clearQuery}
+                aria-label="Clear search"
+                title="Clear"
+              >
+                ✕
+              </button>
+            )}
             {open && suggestions.length > 0 && (
               <ul className="suggestions" id="suggestions" role="listbox">
                 {suggestions.map((name, i) => (

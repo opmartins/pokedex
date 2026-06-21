@@ -116,6 +116,32 @@ body {
 .search__input:focus {
   border-color: var(--accent-2);
 }
+.search__input--has-clear {
+  padding-right: 46px;
+}
+.search__clear {
+  position: absolute;
+  top: 50%;
+  right: 12px;
+  transform: translateY(-50%);
+  width: 26px;
+  height: 26px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: var(--border);
+  color: var(--text);
+  font-size: 0.8rem;
+  line-height: 1;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+.search__clear:hover {
+  background: var(--danger);
+  color: #fff;
+}
 
 /* Autocomplete suggestions */
 .suggestions {
