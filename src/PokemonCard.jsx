@@ -3,10 +3,48 @@ import { STAT_LABELS } from './types'
 
 const fmtName = (n) => n.replace(/-/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())
 
+function RegToggle({ regulations, regulation, onChange }) {
+  if (!regulations.length) return null
+  return (
+    <div className="reg-toggle" role="group" aria-label="Regulation">
+      {regulations.map((r) => (
+        <button
+          key={r.key}
+          className={`reg-toggle__btn ${r.key === regulation ? 'is-active' : ''}`}
+          onClick={() => onChange?.(r.key)}
+        >
+          {r.label}
+        </button>
+      ))}
+    </div>
+  )
+}
+
+// A clickable chip for a competitively-used Pokémon (counter or target).
+function UsageChip({ p, onSelect }) {
+  return (
+    <button
+      className="counter"
+      onClick={() => onSelect?.(p.name)}
+      title={`${fmtName(p.name)} · ${p.total} base total${
+        p.mult ? ` · ×${p.mult} damage` : ''
+      }`}
+    >
+      {p.sprite && <img src={p.sprite} alt="" />}
+      <span>{fmtName(p.name)}</span>
+      {p.usage != null && (
+        <strong className="counter__usage">{(p.usage * 100).toFixed(1)}%</strong>
+      )}
+    </button>
+  )
+}
+
 export default function PokemonCard({
   pokemon,
   counters,
   countersLoading,
+  strongAgainst,
+  strongLoading,
   regulations = [],
   regulation,
   onRegulationChange,
@@ -16,6 +54,8 @@ export default function PokemonCard({
   const maxStat = 255
   const groups = counters?.groups ?? []
   const hasCounters = groups.some((g) => g.pokemon.length > 0)
+  const strongGroups = strongAgainst?.groups ?? []
+  const hasStrong = strongGroups.some((g) => g.pokemon.length > 0)
 
   return (
     <article className="card">
@@ -125,21 +165,11 @@ export default function PokemonCard({
         <section className="info-block">
           <div className="counters__header">
             <h3>💥 Strong counters</h3>
-            {regulations.length > 0 && (
-              <div className="reg-toggle" role="group" aria-label="Regulation">
-                {regulations.map((r) => (
-                  <button
-                    key={r.key}
-                    className={`reg-toggle__btn ${
-                      r.key === regulation ? 'is-active' : ''
-                    }`}
-                    onClick={() => onRegulationChange?.(r.key)}
-                  >
-                    {r.label}
-                  </button>
-                ))}
-              </div>
-            )}
+            <RegToggle
+              regulations={regulations}
+              regulation={regulation}
+              onChange={onRegulationChange}
+            />
           </div>
           <p className="muted counters__hint">
             Most-used Pokémon Champions Pokémon (by Showdown usage) whose type hits
@@ -168,20 +198,56 @@ export default function PokemonCard({
                   <TypeBadge type={group.type} multiplier={group.mult} />
                   <div className="counters__list">
                     {group.pokemon.map((p) => (
-                      <button
-                        key={p.name}
-                        className="counter"
-                        onClick={() => onSelect?.(p.name)}
-                        title={`${fmtName(p.name)} · ${p.total} base total`}
-                      >
-                        {p.sprite && <img src={p.sprite} alt="" />}
-                        <span>{fmtName(p.name)}</span>
-                        {p.usage != null && (
-                          <strong className="counter__usage">
-                            {(p.usage * 100).toFixed(1)}%
-                          </strong>
-                        )}
-                      </button>
+                      <UsageChip key={p.name} p={p} onSelect={onSelect} />
+                    ))}
+                  </div>
+                </div>
+              ),
+          )}
+        </section>
+      )}
+
+      {/* Strong against: most-used Pokémon this one hits super-effectively */}
+      {pokemon.types.length > 0 && (
+        <section className="info-block">
+          <div className="counters__header">
+            <h3>⚔️ Strong against</h3>
+            <RegToggle
+              regulations={regulations}
+              regulation={regulation}
+              onChange={onRegulationChange}
+            />
+          </div>
+          <p className="muted counters__hint">
+            Most-used Pokémon Champions Pokémon that this one hits super-effectively
+            with its own type. Click to look one up.
+          </p>
+
+          {strongLoading && !hasStrong && (
+            <p className="muted">Finding targets…</p>
+          )}
+          {!strongLoading && strongAgainst?.status === 'nodata' && (
+            <p className="muted">
+              No usage data published yet for this regulation. Try Reg M-A.
+            </p>
+          )}
+          {!strongLoading && strongAgainst?.status === 'fallback' && (
+            <p className="muted">Usage data unavailable right now.</p>
+          )}
+          {!strongLoading && strongAgainst?.status === 'ok' && !hasStrong && (
+            <p className="muted">
+              Not super-effective against common Pokémon in this regulation.
+            </p>
+          )}
+
+          {strongGroups.map(
+            (group) =>
+              group.pokemon.length > 0 && (
+                <div key={group.type} className="counters__group">
+                  <TypeBadge type={group.type} />
+                  <div className="counters__list">
+                    {group.pokemon.map((p) => (
+                      <UsageChip key={p.name} p={p} onSelect={onSelect} />
                     ))}
                   </div>
                 </div>

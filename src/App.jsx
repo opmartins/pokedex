@@ -1,5 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { fetchPokemon, fetchAllNames, fetchSprite, fetchCounters } from './api'
+import {
+  fetchPokemon,
+  fetchAllNames,
+  fetchSprite,
+  fetchCounters,
+  fetchStrongAgainst,
+} from './api'
 import PokemonCard from './PokemonCard'
 
 const RECENT_KEY = 'pokedex.recent'
@@ -41,6 +47,8 @@ export default function App() {
   const [error, setError] = useState('')
   const [counters, setCounters] = useState(null)
   const [countersLoading, setCountersLoading] = useState(false)
+  const [strongAgainst, setStrongAgainst] = useState(null)
+  const [strongLoading, setStrongLoading] = useState(false)
   const [regulation, setRegulation] = useState('ma')
   const [recent, setRecent] = useState(loadRecent)
 
@@ -90,26 +98,30 @@ export default function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [recent.length])
 
-  // Load counters whenever the Pokémon or the selected regulation changes.
+  // Load counters + strong-against whenever the Pokémon or regulation changes.
   useEffect(() => {
     if (!pokemon) {
       setCounters(null)
+      setStrongAgainst(null)
       return
     }
     let cancelled = false
     const format = REGULATIONS.find((r) => r.key === regulation)?.format
+
     setCounters(null)
     setCountersLoading(true)
     fetchCounters(pokemon.weaknesses, format)
-      .then((res) => {
-        if (!cancelled) setCounters(res)
-      })
-      .catch(() => {
-        if (!cancelled) setCounters({ status: 'fallback', month: null, groups: [] })
-      })
-      .finally(() => {
-        if (!cancelled) setCountersLoading(false)
-      })
+      .then((res) => !cancelled && setCounters(res))
+      .catch(() => !cancelled && setCounters({ status: 'fallback', month: null, groups: [] }))
+      .finally(() => !cancelled && setCountersLoading(false))
+
+    setStrongAgainst(null)
+    setStrongLoading(true)
+    fetchStrongAgainst(pokemon.types, format)
+      .then((res) => !cancelled && setStrongAgainst(res))
+      .catch(() => !cancelled && setStrongAgainst({ status: 'fallback', month: null, groups: [] }))
+      .finally(() => !cancelled && setStrongLoading(false))
+
     return () => {
       cancelled = true
     }
@@ -317,6 +329,8 @@ export default function App() {
               pokemon={pokemon}
               counters={counters}
               countersLoading={countersLoading}
+              strongAgainst={strongAgainst}
+              strongLoading={strongLoading}
               regulations={REGULATIONS}
               regulation={regulation}
               onRegulationChange={setRegulation}

@@ -75,6 +75,11 @@ npm run build    # build de produção em dist/
   `useEffect([pokemon, regulation])`. **Fallback** para `countersByStats` só quando
   o endpoint está indisponível (ex.: `vite dev` local **não** roda a function; só
   `vercel dev` ou produção servem `/api/usage`).
+- **Strong against** (espelho dos counters): `fetchStrongAgainst(types, format)`
+  usa a MESMA arquitetura/usage — para cada tipo do Pokémon (ofensivo), os mais
+  usados que ele bate super-efetivo (`damage_relations.*_to`), ordenados por uso.
+  Sem fallback por stats (usage indisponível → vazio). UI reaproveita o CSS dos
+  counters; toggle de regulation aparece nas duas seções (mesmo estado).
 
 ## Decisão importante: cálculo de fraquezas
 

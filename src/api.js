@@ -330,3 +330,69 @@ async function countersByStats(weaknesses) {
       .slice(0, TOP_PER_TYPE),
   }))
 }
+
+/* ---------- Strong against (who the selected Pokémon beats offensively) ------- */
+
+/**
+ * Mirror of fetchCounters: for each of the Pokémon's own types (used as STAB),
+ * the most-used Pokémon Champions Pokémon that this type hits super-effectively.
+ * Returns: { status, month, groups: [{ type, pokemon: [{..., mult}] }] }
+ *   status: 'ok' | 'nodata' | 'fallback'
+ */
+export async function fetchStrongAgainst(types, format) {
+  if (!types?.length) return { status: 'ok', month: null, groups: [] }
+
+  const u = await fetchUsage(format)
+  if (u.status === 'ok') {
+    return { status: 'ok', month: u.month, groups: await strongAgainstByUsage(types, u.usage) }
+  }
+  if (u.status === 'nodata') {
+    return { status: 'nodata', month: null, groups: [] }
+  }
+  // No usage available (e.g. local vite dev): nothing reliable to show.
+  return { status: 'fallback', month: null, groups: [] }
+}
+
+async function strongAgainstByUsage(attackTypes, usage) {
+  const topUsed = Object.entries(usage)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, USAGE_POOL)
+    .map(([slug]) => slug)
+
+  const mons = (await runPool(topUsed, 10, fetchSummary)).filter(Boolean)
+
+  // Offensive effectiveness of each attacking type vs every defending type.
+  const relations = {}
+  await Promise.all(
+    attackTypes.map(async (t) => {
+      const rel = (await getType(t)).damage_relations
+      const factor = {}
+      for (const x of rel.double_damage_to) factor[x.name] = 2
+      for (const x of rel.half_damage_to) factor[x.name] = 0.5
+      for (const x of rel.no_damage_to) factor[x.name] = 0
+      relations[t] = factor
+    }),
+  )
+
+  return attackTypes.map((t) => {
+    const factor = relations[t]
+    return {
+      type: t,
+      pokemon: mons
+        .map((m) => ({
+          ...m,
+          mult: m.types.reduce((acc, dt) => acc * (factor[dt] ?? 1), 1),
+        }))
+        .filter((m) => m.mult > 1)
+        .sort((a, b) => (usage[b.name] ?? 0) - (usage[a.name] ?? 0))
+        .slice(0, TOP_PER_TYPE)
+        .map((m) => ({
+          name: m.name,
+          sprite: m.sprite,
+          total: m.total,
+          usage: usage[m.name],
+          mult: m.mult,
+        })),
+    }
+  })
+}
