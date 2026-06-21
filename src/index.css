@@ -412,6 +412,59 @@ body {
   margin: 0;
 }
 
+/* Counters */
+.counters__hint {
+  font-size: 0.85rem;
+  margin: -4px 0 14px;
+}
+.counters__group {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 0;
+  border-top: 1px solid var(--border);
+  flex-wrap: wrap;
+}
+.counters__group:first-of-type {
+  border-top: none;
+}
+.counters__list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.counter {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 12px 4px 4px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--bg-soft);
+  color: var(--text);
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+}
+.counter:hover {
+  border-color: var(--accent);
+  background: var(--bg-card);
+}
+.counter img {
+  width: 30px;
+  height: 30px;
+  object-fit: contain;
+  background: var(--bg-card);
+  border-radius: 50%;
+}
+.counter__usage {
+  font-size: 0.72rem;
+  color: var(--accent);
+  background: rgba(255, 203, 5, 0.12);
+  padding: 1px 7px;
+  border-radius: 999px;
+}
+
 /* Abilities + tooltip */
 .abilities {
   display: flex;

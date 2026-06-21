@@ -3,9 +3,10 @@ import { STAT_LABELS } from './types'
 
 const fmtName = (n) => n.replace(/-/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())
 
-export default function PokemonCard({ pokemon }) {
+export default function PokemonCard({ pokemon, counters, countersLoading, onSelect }) {
   const { weaknesses, resistances, immunities, stats } = pokemon
   const maxStat = 255
+  const hasCounters = counters && counters.some((g) => g.pokemon.length > 0)
 
   return (
     <article className="card">
@@ -108,6 +109,47 @@ export default function PokemonCard({ pokemon }) {
           ))}
         </ul>
       </section>
+
+      {/* Strong counters: who threatens this Pokémon with super-effective STAB */}
+      {(countersLoading || hasCounters) && (
+        <section className="info-block">
+          <h3>💥 Strong counters</h3>
+          <p className="muted counters__hint">
+            Most-used competitive Pokémon (by Showdown usage) whose type hits this
+            one super-effectively. Click to look one up.
+          </p>
+          {countersLoading && !hasCounters && (
+            <p className="muted">Finding counters…</p>
+          )}
+          {counters &&
+            counters.map(
+              (group) =>
+                group.pokemon.length > 0 && (
+                  <div key={group.type} className="counters__group">
+                    <TypeBadge type={group.type} multiplier={group.mult} />
+                    <div className="counters__list">
+                      {group.pokemon.map((p) => (
+                        <button
+                          key={p.name}
+                          className="counter"
+                          onClick={() => onSelect?.(p.name)}
+                          title={`${fmtName(p.name)} · ${p.total} base total`}
+                        >
+                          {p.sprite && <img src={p.sprite} alt="" />}
+                          <span>{fmtName(p.name)}</span>
+                          {p.usage != null && (
+                            <strong className="counter__usage">
+                              {(p.usage * 100).toFixed(1)}%
+                            </strong>
+                          )}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                ),
+            )}
+        </section>
+      )}
     </article>
   )
 }

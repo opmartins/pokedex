@@ -51,6 +51,25 @@ npm run build    # build de produção em dist/
 - [src/types.js](src/types.js) — `TYPE_INFO` (cor + label PT de cada tipo) e
   `STAT_LABELS` (nomes dos atributos em PT).
 
+## Strong counters por uso competitivo (Showdown/Smogon)
+
+- A seção "Strong counters" mostra **apenas Pokémon usados pelos players**,
+  ordenados por % de uso, cruzando as fraquezas do alvo com as usage stats.
+- Fonte: **Smogon chaos JSON** (`smogon.com/stats/<mês>/chaos/<formato>-1760.json`),
+  derivado do ladder do Pokémon Showdown. Formato atual: `gen9vgc2026regi`
+  (constante `DEFAULT_FORMAT` em [api/usage.js](api/usage.js) — **atualizar quando
+  a regulation mudar**).
+- **CORS:** o smogon.com não envia header CORS, então o browser não busca direto.
+  Por isso há uma **Vercel Serverless Function** [api/usage.js](api/usage.js) que
+  busca server-side, normaliza nomes Smogon→PokéAPI (aliases p/ formes: Urshifu,
+  Landorus, Ogerpon-*, Indeedee-F…) e devolve `{ usage: { slug: fração } }` com
+  cache (warm-instance + `Cache-Control` na CDN).
+- Cliente: `fetchUsage()` chama `/api/usage`; `fetchCounters()` usa
+  `countersByUsage` (parte dos ~90 mais usados, busca tipos e agrupa por fraqueza).
+  **Fallback** para `countersByStats` (mais fortes por base stats) quando o usage
+  não está disponível — ex.: `vite dev` local **não** roda a function; só `vercel
+  dev` ou produção servem `/api/usage`.
+
 ## Decisão importante: cálculo de fraquezas
 
 A PokeAPI **não** retorna "fraquezas" prontas. Em [src/api.js](src/api.js):

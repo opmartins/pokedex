@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { fetchPokemon, fetchAllNames, fetchSprite } from './api'
+import { fetchPokemon, fetchAllNames, fetchSprite, fetchCounters } from './api'
 import PokemonCard from './PokemonCard'
 
 const RECENT_KEY = 'pokedex.recent'
@@ -33,6 +33,8 @@ export default function App() {
   const [pokemon, setPokemon] = useState(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [counters, setCounters] = useState(null)
+  const [countersLoading, setCountersLoading] = useState(false)
   const [recent, setRecent] = useState(loadRecent)
 
   const [allNames, setAllNames] = useState([])
@@ -40,6 +42,7 @@ export default function App() {
   const [active, setActive] = useState(-1) // highlighted suggestion index
   const boxRef = useRef(null)
   const inputRef = useRef(null)
+  const searchId = useRef(0) // guards against stale async counter results
 
   function clearQuery() {
     setQuery('')
@@ -112,6 +115,8 @@ export default function App() {
     setActive(-1)
     setLoading(true)
     setError('')
+    setCounters(null)
+    const reqId = ++searchId.current
     try {
       const result = await fetchPokemon(name)
       setPokemon(result)
@@ -121,11 +126,29 @@ export default function App() {
         const next = [entry, ...prev.filter((p) => p.name !== result.name)]
         return next.slice(0, MAX_RECENT)
       })
+      loadCounters(result, reqId)
     } catch (err) {
       setPokemon(null)
       setError(err.message)
     } finally {
       setLoading(false)
+    }
+  }
+
+  // Loads counters in the background so the main card isn't blocked.
+  async function loadCounters(result, reqId) {
+    if (!result.weaknesses.length) {
+      setCounters([])
+      return
+    }
+    setCountersLoading(true)
+    try {
+      const data = await fetchCounters(result.weaknesses)
+      if (reqId === searchId.current) setCounters(data) // ignore stale results
+    } catch {
+      if (reqId === searchId.current) setCounters([])
+    } finally {
+      if (reqId === searchId.current) setCountersLoading(false)
     }
   }
 
@@ -154,6 +177,7 @@ export default function App() {
     setPokemon(null)
     setError('')
     setQuery('')
+    setCounters(null)
   }
 
   const onHome = !pokemon && !loading
@@ -278,7 +302,15 @@ export default function App() {
             <button className="back-btn" onClick={goHome}>
               ← Back to home
             </button>
-            <PokemonCard pokemon={pokemon} />
+            <PokemonCard
+              pokemon={pokemon}
+              counters={counters}
+              countersLoading={countersLoading}
+              onSelect={(name) => {
+                setQuery(name)
+                search(name)
+              }}
+            />
           </>
         )}
       </main>
